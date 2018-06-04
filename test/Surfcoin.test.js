@@ -2,6 +2,7 @@ import assertRevert from '../helpers/assertRevert';
 import expectThrow from '../helpers/expectThrow';
 import ether from '../helpers/ether';
 import { inLogs } from '../helpers/expectEvent';
+import decodeLogs from '../helpers/decodeLogs';
 
 
 const BigNumber = web3.BigNumber;
@@ -14,6 +15,33 @@ require('chai')
 
 
 const Surfcoin = artifacts.require('Surfcoin');
+
+
+contract('SimpleToken', accounts => {
+  let token;
+  const creator = accounts[0];
+  const tokenName = 'SurfCoin';
+  const tokenSymbol = 'SURF';
+
+  beforeEach(async function () {
+    token = await Surfcoin.new(100, { from: creator });
+  });
+
+  it('has a name ' + tokenName, async function () {
+    const name = await token.name();
+    assert.equal(name, tokenName);
+  });
+
+  it('has a symbol ' + tokenSymbol, async function () {
+    const symbol = await token.symbol();
+    assert.equal(symbol, tokenSymbol);
+  });
+
+  it('has 18 decimals', async function () {
+    const decimals = await token.decimals();
+    assert(decimals.eq(18));
+  });
+});
 
 
 contract('Ownable', function (accounts) {
