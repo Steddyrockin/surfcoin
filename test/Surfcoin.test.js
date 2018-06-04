@@ -1,12 +1,21 @@
 import assertRevert from '../helpers/assertRevert';
 import expectThrow from '../helpers/expectThrow';
 import ether from '../helpers/ether';
+import { inLogs } from '../helpers/expectEvent';
+
+const BigNumber = web3.BigNumber;
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+require('chai')
+  .use(require('chai-as-promised'))
+  .use(require('chai-bignumber')(BigNumber))
+  .should();
+
 
 const Surfcoin = artifacts.require('Surfcoin');
 
 
 contract('BaseToken', function ([_, owner, recipient, anotherAccount]) {
-  const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
   beforeEach(async function () {
     this.token = await Surfcoin.new(100);
@@ -253,5 +262,54 @@ contract('Capped', function (accounts) {
     await token.mint(accounts[0], cap);
     await expectThrow(token.mint(accounts[0], 1));
   });
+});
+
+
+contract('BurnableToken', function ([owner]) {
+  const initialBalance = 1000;
+
+  beforeEach(async function () {
+    this.token = await Surfcoin.new(initialBalance);
+    let result = await this.token.mint(owner, initialBalance);
+  });
+
+  describe('as a basic burnable token', function () {
+    const from = owner;
+
+    describe('when the given amount is not greater than balance of the sender', function () {
+      const amount = 100;
+
+      beforeEach(async function () {
+        ({ logs: this.logs } = await this.token.burn(amount, { from }));
+      });
+
+      it('burns the requested amount', async function () {
+        const balance = await this.token.balanceOf(from);
+        balance.should.be.bignumber.equal(initialBalance - amount);
+      });
+
+      it('emits a burn event', async function () {
+        const event = await inLogs(this.logs, 'Burn');
+        event.args.burner.should.eq(owner);
+        event.args.value.should.be.bignumber.equal(amount);
+      });
+
+      it('emits a transfer event', async function () {
+        const event = await inLogs(this.logs, 'Transfer');
+        event.args.from.should.eq(owner);
+        event.args.to.should.eq(ZERO_ADDRESS);
+        event.args.value.should.be.bignumber.equal(amount);
+      });
+    });
+
+    describe('when the given amount is greater than the balance of the sender', function () {
+      const amount = initialBalance + 1;
+
+      it('reverts', async function () {
+        await assertRevert(this.token.burn(amount, { from }));
+      });
+    });
+  });
+
 });
 
